@@ -34,6 +34,10 @@ The calibration sliders are remembered between sessions: your last
 settings come back on the next reload so you don't have to re-dial them
 every time.
 
+Stuck for an idea? Hit **Surprise me** above the calibration sliders to
+randomize them into something usually-musical and play that against
+your image.
+
 ## Run locally
 
 It's a static site:
