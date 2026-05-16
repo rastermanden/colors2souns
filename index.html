@@ -34,8 +34,29 @@
       </div>
     </section>
 
-    <section class="card controls" id="controlsCard" hidden>
+    <section class="card controls" id="controlsCard" data-mode="hue" hidden>
       <h2>Calibration</h2>
+
+      <div class="ctrl">
+        <label for="mode">Mapping mode</label>
+        <select id="mode">
+          <option value="hue" selected>Hue → pitch</option>
+          <option value="rgb">RGB → notes</option>
+        </select>
+      </div>
+
+      <div class="ctrl mode-rgb">
+        <label for="rNote"><span class="swatch swatch-r"></span> Red → note</label>
+        <select id="rNote"></select>
+      </div>
+      <div class="ctrl mode-rgb">
+        <label for="gNote"><span class="swatch swatch-g"></span> Green → note</label>
+        <select id="gNote"></select>
+      </div>
+      <div class="ctrl mode-rgb">
+        <label for="bNote"><span class="swatch swatch-b"></span> Blue → note</label>
+        <select id="bNote"></select>
+      </div>
 
       <div class="ctrl">
         <label for="duration">Scan duration <output id="durationOut">6.0 s</output></label>
@@ -47,17 +68,17 @@
         <input type="range" id="density" min="8" max="256" step="1" value="64" />
       </div>
 
-      <div class="ctrl">
+      <div class="ctrl mode-hue">
         <label for="baseFreq">Base frequency <output id="baseFreqOut">110 Hz</output></label>
         <input type="range" id="baseFreq" min="40" max="880" step="1" value="110" />
       </div>
 
-      <div class="ctrl">
+      <div class="ctrl mode-hue">
         <label for="octaves">Pitch range <output id="octavesOut">4 oct</output></label>
         <input type="range" id="octaves" min="1" max="7" step="0.1" value="4" />
       </div>
 
-      <div class="ctrl">
+      <div class="ctrl mode-hue">
         <label for="hueShift">Hue offset <output id="hueShiftOut">0°</output></label>
         <input type="range" id="hueShift" min="0" max="360" step="1" value="0" />
       </div>
@@ -72,7 +93,7 @@
         </select>
       </div>
 
-      <div class="ctrl">
+      <div class="ctrl mode-hue">
         <label for="quantize">Scale</label>
         <select id="quantize">
           <option value="off">Continuous</option>
@@ -105,7 +126,7 @@
         <input type="range" id="saturation" min="0" max="100" step="1" value="60" />
       </div>
 
-      <div class="ctrl">
+      <div class="ctrl mode-hue">
         <label for="vrows">Vertical chord voices <output id="vrowsOut">3</output></label>
         <input type="range" id="vrows" min="1" max="8" step="1" value="3" />
       </div>

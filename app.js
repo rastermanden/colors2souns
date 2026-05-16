@@ -20,6 +20,10 @@ const ui = {
   octaves: $("octaves"),
   hueShift: $("hueShift"),
   direction: $("direction"),
+  mode: $("mode"),
+  rNote: $("rNote"),
+  gNote: $("gNote"),
+  bNote: $("bNote"),
   quantize: $("quantize"),
   wave: $("wave"),
   brightness: $("brightness"),
@@ -44,7 +48,7 @@ const ctx2d = ui.canvas.getContext("2d", { willReadFrequently: true });
 
 // State
 let imgBitmap = null;
-let sampleData = null; // { cols, rows, hsl: Float32Array[cols*rows*3] }
+let sampleData = null; // { cols, rows, rgb: Float32Array[cols*rows*3], dir, mode }
 let audio = null;      // { ac, master, voices: [{osc, gain, filter}] }
 let playState = { playing: false, startedAt: 0, raf: 0 };
 
@@ -80,6 +84,30 @@ for (const k of ["duration", "density", "baseFreq", "octaves", "hueShift",
     if (k === "density" || k === "vrows") resample();
   });
 }
+
+// Note dropdowns for RGB mode (C2 .. C6, MIDI 36..84).
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+function noteLabel(m) {
+  return NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1);
+}
+function fillNoteOptions(select, defaultMidi) {
+  for (let m = 36; m <= 84; m++) {
+    const opt = document.createElement("option");
+    opt.value = String(m);
+    opt.textContent = noteLabel(m);
+    if (m === defaultMidi) opt.selected = true;
+    select.appendChild(opt);
+  }
+}
+fillNoteOptions(ui.rNote, 48); // C3
+fillNoteOptions(ui.gNote, 64); // E4
+fillNoteOptions(ui.bNote, 79); // G5
+
+ui.mode.addEventListener("change", () => {
+  ui.controlsCard.dataset.mode = ui.mode.value;
+  resample();
+});
 
 // ---------- File / image loading ----------
 
@@ -146,14 +174,15 @@ function drawImage() {
 function resample() {
   if (!imgBitmap) return;
   const cols = clampInt(+ui.density.value, 4, 512);
-  const rows = clampInt(+ui.vrows.value, 1, 16);
+  const mode = ui.mode.value;
+  const rows = mode === "rgb" ? 1 : clampInt(+ui.vrows.value, 1, 16);
   const dir = ui.direction.value;
   const horizontal = dir === "lr" || dir === "rl";
   const reverse = dir === "rl" || dir === "bt";
   const w = ui.canvas.width;
   const h = ui.canvas.height;
   const img = ctx2d.getImageData(0, 0, w, h).data;
-  const hsl = new Float32Array(cols * rows * 3);
+  const rgb = new Float32Array(cols * rows * 3);
 
   for (let c = 0; c < cols; c++) {
     const t = reverse ? cols - 1 - c : c;
@@ -178,15 +207,13 @@ function resample() {
           n++; i += 4;
         }
       }
-      R /= n * 255; G /= n * 255; B /= n * 255;
-      const [hue, sat, lig] = rgbToHsl(R, G, B);
       const o = (c * rows + r) * 3;
-      hsl[o] = hue;
-      hsl[o + 1] = sat;
-      hsl[o + 2] = lig;
+      rgb[o] = R / (n * 255);
+      rgb[o + 1] = G / (n * 255);
+      rgb[o + 2] = B / (n * 255);
     }
   }
-  sampleData = { cols, rows, hsl, dir };
+  sampleData = { cols, rows, rgb, dir, mode };
 }
 
 ui.direction.addEventListener("change", resample);
@@ -267,7 +294,8 @@ ui.stop.addEventListener("click", () => stop(true));
 
 async function play() {
   if (!sampleData) return;
-  const { cols, rows, hsl } = sampleData;
+  const { cols, rows, rgb } = sampleData;
+  const mode = ui.mode.value;
   const duration = +ui.duration.value;
   const baseFreq = +ui.baseFreq.value;
   const octaves = +ui.octaves.value;
@@ -279,7 +307,12 @@ async function play() {
   const masterVol = (+ui.gain.value) / 100;
   const loop = ui.loop.checked;
 
-  const a = ensureAudio(rows);
+  const voiceCount = mode === "rgb" ? 3 : rows;
+  const rgbFreqs = mode === "rgb"
+    ? [+ui.rNote.value, +ui.gNote.value, +ui.bNote.value].map(midiToFreq)
+    : null;
+
+  const a = ensureAudio(voiceCount);
   const ac = a.ac;
   if (ac.state === "suspended") await ac.resume();
 
@@ -291,33 +324,43 @@ async function play() {
   a.master.gain.linearRampToValueAtTime(masterVol, t0 + 0.04);
 
   // Schedule per-voice automation.
-  for (let r = 0; r < rows; r++) {
-    const v = a.voices[r];
-    v.osc.type = ui.wave.value;
-    v.gain.gain.cancelScheduledValues(t0);
-    v.filter.frequency.cancelScheduledValues(t0);
-    v.osc.frequency.cancelScheduledValues(t0);
+  for (let v = 0; v < voiceCount; v++) {
+    const voice = a.voices[v];
+    voice.osc.type = ui.wave.value;
+    voice.gain.gain.cancelScheduledValues(t0);
+    voice.filter.frequency.cancelScheduledValues(t0);
+    voice.osc.frequency.cancelScheduledValues(t0);
+
+    if (mode === "rgb") {
+      // Voice index maps to channel: 0=R, 1=G, 2=B. Fixed pitch from dropdown.
+      voice.osc.frequency.setValueAtTime(rgbFreqs[v], t0);
+    }
 
     for (let c = 0; c < cols; c++) {
-      const o = (c * rows + r) * 3;
-      const h = (hsl[o] + hueShift) % 1;
-      const s = hsl[o + 1];
-      const l = hsl[o + 2];
-
-      const freq = pitchFromHue(h, baseFreq, octaves, scale);
-      // brightness -> volume; deep darks go silent.
-      const amp = clamp(l * brightness, 0, 1) * (1 / Math.sqrt(rows));
-      // saturation -> lowpass cutoff (more sat = brighter timbre)
-      const cutoff = lerp(400, 12000, clamp(s * saturation + 0.05, 0, 1));
-
       const tc = t0 + c * dt;
-      v.osc.frequency.setValueAtTime(freq, tc);
+      let amp, cutoff;
+
+      if (mode === "rgb") {
+        const o = c * 3; // rows == 1
+        const channel = rgb[o + v]; // 0..1
+        amp = clamp(channel * brightness, 0, 1) * (1 / Math.sqrt(3));
+        cutoff = lerp(400, 12000, clamp(channel * saturation + 0.05, 0, 1));
+      } else {
+        const o = (c * rows + v) * 3;
+        const [hue, sat, lig] = rgbToHsl(rgb[o], rgb[o + 1], rgb[o + 2]);
+        const h = (hue + hueShift) % 1;
+        const freq = pitchFromHue(h, baseFreq, octaves, scale);
+        amp = clamp(lig * brightness, 0, 1) * (1 / Math.sqrt(rows));
+        cutoff = lerp(400, 12000, clamp(sat * saturation + 0.05, 0, 1));
+        voice.osc.frequency.setValueAtTime(freq, tc);
+      }
+
       // small ramps to avoid zipper noise and clicks
-      v.gain.gain.linearRampToValueAtTime(amp * 0.9, tc + dt * 0.5);
-      v.filter.frequency.linearRampToValueAtTime(cutoff, tc + dt * 0.5);
+      voice.gain.gain.linearRampToValueAtTime(amp * 0.9, tc + dt * 0.5);
+      voice.filter.frequency.linearRampToValueAtTime(cutoff, tc + dt * 0.5);
     }
     // tail
-    v.gain.gain.linearRampToValueAtTime(0, t0 + duration + 0.05);
+    voice.gain.gain.linearRampToValueAtTime(0, t0 + duration + 0.05);
   }
 
   playState.playing = true;
