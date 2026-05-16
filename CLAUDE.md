@@ -22,3 +22,5 @@ This repo auto-tags a SemVer release every time a PR is merged into `main`
    produces no behavior change for end users, use `no-release`.
 4. Use `major` only when an existing user's data or URL would break.
 5. Set the label as part of opening the PR — not after merge (too late).
+6. When you open or update a PR, always tell the user in chat which label
+   you applied and a one-line reason — don't make them check the PR.
