@@ -92,6 +92,50 @@ ui.mode.addEventListener("change", () => {
   resample();
 });
 
+// ---------- Settings persistence ----------
+// Save the slider/select values to localStorage on change so that a reload or
+// reopen of the PWA keeps your calibration.
+const SETTINGS_KEY = "c2s-settings";
+const SETTINGS_SCHEMA = 1;
+const PERSIST_KEYS = [
+  "mode", "rNote", "gNote", "bNote",
+  "duration", "density",
+  "baseFreq", "octaves", "hueShift",
+  "direction", "quantize", "wave",
+  "brightness", "saturation", "vrows", "gain",
+];
+
+function saveSettings() {
+  try {
+    const data = { v: SETTINGS_SCHEMA, loop: ui.loop.checked };
+    for (const k of PERSIST_KEYS) data[k] = ui[k].value;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function restoreSettings() {
+  let data;
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    data = JSON.parse(raw);
+  } catch { return; }
+  if (!data || data.v !== SETTINGS_SCHEMA) return;
+  for (const k of PERSIST_KEYS) {
+    if (data[k] !== undefined && ui[k]) ui[k].value = data[k];
+  }
+  if (typeof data.loop === "boolean") ui.loop.checked = data.loop;
+  ui.controlsCard.dataset.mode = ui.mode.value;
+  fmt();
+}
+
+for (const k of PERSIST_KEYS) {
+  ui[k].addEventListener("change", saveSettings);
+}
+ui.loop.addEventListener("change", saveSettings);
+
+restoreSettings();
+
 // ---------- Built-in samples ----------
 // Two flavours: synthetic melodies (a `degrees` array of major-scale degrees
 // painted as hue bands) and real images (a `src` URL). Both share a `preset`
@@ -172,6 +216,7 @@ function applyPreset(p, sample) {
     ui.density.value = Math.min(256, sample.degrees.length * 8);
   }
   fmt();
+  saveSettings();
 }
 
 async function loadSample(sample) {
