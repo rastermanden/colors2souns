@@ -561,13 +561,25 @@ const standaloneMql = window.matchMedia("(display-mode: standalone)");
 const isStandalone = () =>
   standaloneMql.matches || window.navigator.standalone === true;
 const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
-const DISMISS_KEY = "c2s-install-dismissed";
+
+// Tracks why the banner is currently hidden so we can bring it back if the
+// app gets uninstalled (Chrome re-fires beforeinstallprompt in that case).
+//   "installed" — appinstalled fired or display-mode flipped to standalone
+//   "dismissed" — user tapped ✕ or finished the iOS instructions
+//   (unset)     — first run, show the banner naturally
+const STATE_KEY = "c2s-install-state";
+// Migrate the old flag (PRs #6–#8) so existing users don't get re-nagged.
+if (localStorage.getItem("c2s-install-dismissed") === "1" && !localStorage.getItem(STATE_KEY)) {
+  localStorage.setItem(STATE_KEY, "dismissed");
+  localStorage.removeItem("c2s-install-dismissed");
+}
+const getState = () => localStorage.getItem(STATE_KEY);
+const setState = (s) => localStorage.setItem(STATE_KEY, s);
+const clearState = () => localStorage.removeItem(STATE_KEY);
 
 let deferredInstall = null;
 
-function showInstallPanel({ ios = false } = {}) {
-  if (isStandalone()) return;
-  if (localStorage.getItem(DISMISS_KEY) === "1") return;
+function renderInstallPanel(ios) {
   installHint.textContent = ios
     ? 'Tap the share icon, then "Add to Home Screen".'
     : "Add it to your home screen for one-tap access.";
@@ -580,24 +592,30 @@ function hideInstallPanel() {
 }
 
 // If the app gets installed mid-session (display-mode flips to standalone),
-// hide the banner right away.
+// hide the banner right away and remember that it's installed.
 standaloneMql.addEventListener?.("change", (e) => {
   if (e.matches) {
     hideInstallPanel();
-    localStorage.setItem(DISMISS_KEY, "1");
+    setState("installed");
   }
 });
 
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredInstall = e;
-  if (!isStandalone()) showInstallPanel();
+  if (isStandalone()) return;
+  // BIP only fires when the app is currently not installed. If our last known
+  // state was "installed", the user must have just uninstalled — let them see
+  // the banner again. A real user-dismiss stays sticky.
+  if (getState() === "installed") clearState();
+  if (getState() === "dismissed") return;
+  renderInstallPanel(false);
 });
 
 window.addEventListener("appinstalled", () => {
   deferredInstall = null;
   hideInstallPanel();
-  localStorage.setItem(DISMISS_KEY, "1");
+  setState("installed");
 });
 
 installBtn.addEventListener("click", async () => {
@@ -614,26 +632,28 @@ installBtn.addEventListener("click", async () => {
   }
   // Non-iOS without a deferred prompt: nothing to install from here.
   hideInstallPanel();
-  localStorage.setItem(DISMISS_KEY, "1");
+  setState("dismissed");
 });
 
 installClose.addEventListener("click", () => {
   hideInstallPanel();
-  localStorage.setItem(DISMISS_KEY, "1");
+  setState("dismissed");
 });
 
 iosHelpClose.addEventListener("click", () => {
   iosHelp.hidden = true;
   // User has seen the install steps — stop nagging them on future loads.
   hideInstallPanel();
-  localStorage.setItem(DISMISS_KEY, "1");
+  setState("dismissed");
 });
 
 iosHelp.addEventListener("click", (e) => {
   if (e.target === iosHelp) iosHelp.hidden = true;
 });
 
-if (!isStandalone() && IS_IOS) showInstallPanel({ ios: true });
+if (!isStandalone() && IS_IOS && getState() !== "dismissed") {
+  renderInstallPanel(true);
+}
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
