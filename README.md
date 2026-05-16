@@ -26,6 +26,10 @@ scan duration, sample density, hue offset, scale, waveform, brightness and
 saturation response, number of voices (vertical chord size), and master
 volume.
 
+Tap or drag on the preview to jump the playhead to that position — handy
+for skipping to an interesting part of the image without restarting from
+the beginning.
+
 ## Run locally
 
 It's a static site:

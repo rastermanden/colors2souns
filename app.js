@@ -382,10 +382,59 @@ ui.wave.addEventListener("change", () => {
 
 // ---------- Playback ----------
 
-ui.play.addEventListener("click", play);
+ui.play.addEventListener("click", () => play(0));
 ui.stop.addEventListener("click", () => stop(true));
 
-async function play() {
+// Tap or drag on the canvas to jump the playhead. Fraction is measured along
+// the current scan direction, so dragging always moves "forward through time".
+let scrubPointerId = null;
+let scrubLastFrac = -1;
+let scrubLastAt = 0;
+
+function scrubFractionFromEvent(e) {
+  const rect = ui.canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return 0;
+  const x = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+  const y = clamp((e.clientY - rect.top) / rect.height, 0, 1);
+  switch (ui.direction.value) {
+    case "rl": return 1 - x;
+    case "tb": return y;
+    case "bt": return 1 - y;
+    default:   return x; // lr
+  }
+}
+
+ui.canvas.addEventListener("pointerdown", (e) => {
+  if (!sampleData) return;
+  e.preventDefault();
+  try { ui.canvas.setPointerCapture(e.pointerId); } catch {}
+  scrubPointerId = e.pointerId;
+  scrubLastFrac = scrubFractionFromEvent(e);
+  scrubLastAt = performance.now();
+  play(scrubLastFrac);
+});
+
+ui.canvas.addEventListener("pointermove", (e) => {
+  if (scrubPointerId !== e.pointerId || !sampleData) return;
+  const f = scrubFractionFromEvent(e);
+  const now = performance.now();
+  // Throttle to keep scrub responsive without thrashing the scheduler.
+  if (now - scrubLastAt < 80) return;
+  if (Math.abs(f - scrubLastFrac) < 1 / sampleData.cols) return;
+  scrubLastFrac = f;
+  scrubLastAt = now;
+  play(f);
+});
+
+function endScrub(e) {
+  if (scrubPointerId !== e.pointerId) return;
+  try { ui.canvas.releasePointerCapture(e.pointerId); } catch {}
+  scrubPointerId = null;
+}
+ui.canvas.addEventListener("pointerup", endScrub);
+ui.canvas.addEventListener("pointercancel", endScrub);
+
+async function play(startFraction = 0) {
   if (!sampleData) return;
   const { cols, rows, rgb } = sampleData;
   const mode = ui.mode.value;
@@ -405,16 +454,29 @@ async function play() {
     ? [+ui.rNote.value, +ui.gNote.value, +ui.bNote.value].map(midiToFreq)
     : null;
 
+  // sampleData.rgb is in scan-order (resample() already accounts for direction),
+  // so we can skip the first `startCol` blocks to start playback at that point.
+  const startFrac = clamp(startFraction, 0, 0.9999);
+  const startCol = Math.min(cols - 1, Math.floor(startFrac * cols));
+
+  const wasPlaying = playState.playing;
+  clearTimeout(playState.timer);
+
   const a = ensureAudio(voiceCount);
   const ac = a.ac;
   if (ac.state === "suspended") await ac.resume();
 
   const t0 = ac.currentTime + 0.05;
   const dt = duration / cols;
-  // Schedule master fade-in
+  // Fade master in on a fresh start. During scrub we keep volume up so the
+  // per-voice rescheduling sounds continuous instead of gated.
   a.master.gain.cancelScheduledValues(t0);
-  a.master.gain.setValueAtTime(0, t0);
-  a.master.gain.linearRampToValueAtTime(masterVol, t0 + 0.04);
+  if (wasPlaying) {
+    a.master.gain.setValueAtTime(masterVol, t0);
+  } else {
+    a.master.gain.setValueAtTime(0, t0);
+    a.master.gain.linearRampToValueAtTime(masterVol, t0 + 0.04);
+  }
 
   // Schedule per-voice automation.
   for (let v = 0; v < voiceCount; v++) {
@@ -429,8 +491,8 @@ async function play() {
       voice.osc.frequency.setValueAtTime(rgbFreqs[v], t0);
     }
 
-    for (let c = 0; c < cols; c++) {
-      const tc = t0 + c * dt;
+    for (let c = startCol; c < cols; c++) {
+      const tc = t0 + (c - startCol) * dt;
       let amp, cutoff;
 
       if (mode === "rgb") {
@@ -453,11 +515,13 @@ async function play() {
       voice.filter.frequency.linearRampToValueAtTime(cutoff, tc + dt * 0.5);
     }
     // tail
-    voice.gain.gain.linearRampToValueAtTime(0, t0 + duration + 0.05);
+    voice.gain.gain.linearRampToValueAtTime(0, t0 + (cols - startCol) * dt + 0.05);
   }
 
   playState.playing = true;
-  playState.startedAt = t0;
+  // Pretend playback started startFrac earlier so tick() shows the right
+  // fractional progress along the scan direction.
+  playState.startedAt = t0 - startFrac * duration;
   playState.duration = duration;
   playState.dir = ui.direction.value;
   const horizontalScan = playState.dir === "lr" || playState.dir === "rl";
@@ -468,16 +532,15 @@ async function play() {
   ui.stop.disabled = false;
   tick();
 
-  // Stop or loop when done
-  const endAt = t0 + duration;
-  const remaining = Math.max(0, (endAt - ac.currentTime) * 1000);
+  // Stop or loop when the remaining tail finishes.
+  const remainingMs = (cols - startCol) * dt * 1000;
   playState.timer = setTimeout(() => {
     if (loop && playState.playing) {
-      play();
+      play(0);
     } else {
       stop(false);
     }
-  }, remaining + 80);
+  }, remainingMs + 80);
 }
 
 function stop(hard) {
