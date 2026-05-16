@@ -17,6 +17,7 @@ jobs:
               { name: 'major', color: 'b60205', description: 'Breaking change — bumps MAJOR on merge' },
               { name: 'minor', color: '0e8a16', description: 'New feature — bumps MINOR on merge' },
               { name: 'patch', color: 'c5def5', description: 'Bug fix / chore — bumps PATCH on merge' },
+              { name: 'no-release', color: 'ededed', description: 'Skip auto-tag on merge (non-app changes, e.g. docs/CI only)' },
             ];
             for (const l of labels) {
               try {
