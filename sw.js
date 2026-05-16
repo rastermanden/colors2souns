@@ -1,8 +1,8 @@
-const CACHE = "c2s-v6";
+const CACHE = "c2s-v7";
 const SHELL = [
   "./",
   "./index.html",
-  "./app.js?v=11",
+  "./app.js?v=12",
   "./style.css",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
