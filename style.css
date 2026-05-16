@@ -236,6 +236,31 @@ input[type="checkbox"] {
 .controls[data-mode="hue"] .mode-rgb { display: none; }
 .controls[data-mode="rgb"] .mode-hue { display: none; }
 
+.samples {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.samples-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+.sample-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sample-btn {
+  min-height: 36px;
+  min-width: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+  background: linear-gradient(135deg, #21212c, #1a1a23);
+  border-color: var(--line);
+}
+.sample-btn:hover { border-color: var(--accent); }
+
 .swatch {
   display: inline-block;
   width: 12px;
