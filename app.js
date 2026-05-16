@@ -92,26 +92,44 @@ ui.mode.addEventListener("change", () => {
   resample();
 });
 
-// ---------- Built-in melodies ----------
-// Each melody is a list of major-scale degrees (0=C, 1=D, ... 6=B, 7=C', 8=D', ...).
-// In hue mode with Major scale + 2-octave range, hue (degree+0.5)/14 maps to
-// the desired note. Loading a sample paints colour bands onto the canvas and
-// applies the preset that decodes them back.
+// ---------- Built-in samples ----------
+// Two flavours: synthetic melodies (a `degrees` array of major-scale degrees
+// painted as hue bands) and real images (a `src` URL). Both share a `preset`
+// that configures the calibration sliders for the playback.
+const MELODY_PRESET = {
+  mode: "hue", quantize: "major", octaves: 2, baseFreq: 131,
+  direction: "lr", hueShift: 0, vrows: 1,
+  brightness: 110, saturation: 60, wave: "triangle",
+};
 const SAMPLES = [
   {
     name: "Twinkle",
     degrees: [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0],
     duration: 5,
+    preset: MELODY_PRESET,
   },
   {
     name: "Mary",
     degrees: [2, 1, 0, 1, 2, 2, 2, 1, 1, 1, 2, 4, 4],
     duration: 4.5,
+    preset: MELODY_PRESET,
   },
   {
     name: "Ode to Joy",
     degrees: [2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 2, 1, 1],
     duration: 5,
+    preset: MELODY_PRESET,
+  },
+  {
+    name: "Bosse",
+    src: "./samples/bosse.jpg",
+    duration: 10,
+    density: 96,
+    preset: {
+      mode: "hue", quantize: "pentatonic", octaves: 3, baseFreq: 110,
+      direction: "lr", hueShift: 0, vrows: 3,
+      brightness: 120, saturation: 70, wave: "triangle",
+    },
   },
 ];
 
@@ -134,24 +152,35 @@ function buildSampleCanvas(degrees) {
   return c;
 }
 
-function loadSample(sample) {
-  imgBitmap = buildSampleCanvas(sample.degrees);
-  // Preset for melody playback.
-  ui.mode.value = "hue";
-  ui.controlsCard.dataset.mode = "hue";
-  ui.quantize.value = "major";
-  ui.octaves.value = 2;
-  ui.baseFreq.value = 131; // ≈ C3
+function applyPreset(p, sample) {
+  ui.mode.value = p.mode;
+  ui.controlsCard.dataset.mode = p.mode;
+  ui.quantize.value = p.quantize;
+  ui.octaves.value = p.octaves;
+  ui.baseFreq.value = p.baseFreq;
+  ui.direction.value = p.direction;
+  ui.hueShift.value = p.hueShift;
+  ui.vrows.value = p.vrows;
+  ui.brightness.value = p.brightness;
+  ui.saturation.value = p.saturation;
+  ui.wave.value = p.wave;
   ui.duration.value = sample.duration;
-  ui.direction.value = "lr";
-  ui.hueShift.value = 0;
-  ui.vrows.value = 1;
-  // Density a multiple of note count, so each sample column stays inside one band.
-  ui.density.value = Math.min(256, sample.degrees.length * 8);
-  ui.brightness.value = 110;
-  ui.saturation.value = 60;
-  ui.wave.value = "triangle";
+  if (sample.density) {
+    ui.density.value = sample.density;
+  } else if (sample.degrees) {
+    // Density a multiple of note count, so each sample column stays inside one band.
+    ui.density.value = Math.min(256, sample.degrees.length * 8);
+  }
   fmt();
+}
+
+async function loadSample(sample) {
+  if (sample.src) {
+    imgBitmap = await loadImage(sample.src);
+  } else {
+    imgBitmap = buildSampleCanvas(sample.degrees);
+  }
+  applyPreset(sample.preset, sample);
   drawImage();
   resample();
   ui.previewCard.hidden = false;
