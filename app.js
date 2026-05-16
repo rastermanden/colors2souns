@@ -136,6 +136,44 @@ ui.loop.addEventListener("change", saveSettings);
 
 restoreSettings();
 
+// ---------- Surprise me ----------
+// Randomize the calibration into something that usually sounds musical — keeps
+// scales/octaves/voice counts inside pleasing bounds and leaves master gain
+// alone so the user isn't blasted.
+function randFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randInt(lo, hi) { return Math.floor(lo + Math.random() * (hi - lo + 1)); }
+function randFloat(lo, hi) { return lo + Math.random() * (hi - lo); }
+
+function surpriseMe() {
+  ui.mode.value = Math.random() < 0.8 ? "hue" : "rgb";
+  ui.controlsCard.dataset.mode = ui.mode.value;
+  ui.quantize.value = randFrom(["major", "minor", "pentatonic", "blues", "wholetone"]);
+  ui.direction.value = randFrom(["lr", "rl", "tb", "bt"]);
+  ui.wave.value = randFrom(["sine", "triangle", "sawtooth", "square"]);
+  ui.baseFreq.value = randInt(80, 220);
+  ui.octaves.value = randFloat(2, 5).toFixed(1);
+  ui.duration.value = randFloat(4, 12).toFixed(1);
+  ui.density.value = randInt(32, 128);
+  ui.hueShift.value = randInt(0, 360);
+  ui.vrows.value = randInt(2, 5);
+  ui.brightness.value = randInt(80, 150);
+  ui.saturation.value = randInt(40, 90);
+  if (ui.mode.value === "rgb") {
+    // Build a triad so the three channel pitches sit in chord, not at random.
+    const root = randInt(48, 60); // C3..C4
+    const third = root + randFrom([3, 4]); // minor or major
+    const fifth = root + 7;
+    ui.rNote.value = String(root);
+    ui.gNote.value = String(third);
+    ui.bNote.value = String(fifth);
+  }
+  fmt();
+  saveSettings();
+  resample(); // no-op if no image is loaded yet
+}
+
+$("surprise").addEventListener("click", surpriseMe);
+
 // ---------- Built-in samples ----------
 // Two flavours: synthetic melodies (a `degrees` array of major-scale degrees
 // painted as hue bands) and real images (a `src` URL). Both share a `preset`
