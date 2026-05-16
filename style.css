@@ -418,12 +418,29 @@ input[type="checkbox"] {
 }
 .foot .version:empty { display: none; }
 
+.controls-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+.controls-head h2 { margin: 0; }
+.surprise-btn {
+  font-size: 13px;
+  padding: 6px 14px;
+  min-height: 36px;
+  min-width: 0;
+  background: #1c1c26;
+}
+.surprise-btn:hover { border-color: var(--accent); }
+
 @media (min-width: 720px) {
   .controls {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0 24px;
   }
-  .controls h2 { grid-column: 1 / -1; }
+  .controls-head { grid-column: 1 / -1; }
   .ctrl:nth-of-type(2) { border-top: 0; padding-top: 4px; }
 }
