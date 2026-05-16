@@ -19,6 +19,7 @@ const ui = {
   baseFreq: $("baseFreq"),
   octaves: $("octaves"),
   hueShift: $("hueShift"),
+  direction: $("direction"),
   quantize: $("quantize"),
   wave: $("wave"),
   brightness: $("brightness"),
@@ -146,17 +147,29 @@ function resample() {
   if (!imgBitmap) return;
   const cols = clampInt(+ui.density.value, 4, 512);
   const rows = clampInt(+ui.vrows.value, 1, 16);
+  const dir = ui.direction.value;
+  const horizontal = dir === "lr" || dir === "rl";
+  const reverse = dir === "rl" || dir === "bt";
   const w = ui.canvas.width;
   const h = ui.canvas.height;
   const img = ctx2d.getImageData(0, 0, w, h).data;
   const hsl = new Float32Array(cols * rows * 3);
 
   for (let c = 0; c < cols; c++) {
-    const x0 = Math.floor((c * w) / cols);
-    const x1 = Math.max(x0 + 1, Math.floor(((c + 1) * w) / cols));
+    const t = reverse ? cols - 1 - c : c;
     for (let r = 0; r < rows; r++) {
-      const y0 = Math.floor((r * h) / rows);
-      const y1 = Math.max(y0 + 1, Math.floor(((r + 1) * h) / rows));
+      let x0, x1, y0, y1;
+      if (horizontal) {
+        x0 = Math.floor((t * w) / cols);
+        x1 = Math.max(x0 + 1, Math.floor(((t + 1) * w) / cols));
+        y0 = Math.floor((r * h) / rows);
+        y1 = Math.max(y0 + 1, Math.floor(((r + 1) * h) / rows));
+      } else {
+        y0 = Math.floor((t * h) / cols);
+        y1 = Math.max(y0 + 1, Math.floor(((t + 1) * h) / cols));
+        x0 = Math.floor((r * w) / rows);
+        x1 = Math.max(x0 + 1, Math.floor(((r + 1) * w) / rows));
+      }
       let R = 0, G = 0, B = 0, n = 0;
       for (let y = y0; y < y1; y++) {
         let i = (y * w + x0) * 4;
@@ -173,8 +186,10 @@ function resample() {
       hsl[o + 2] = lig;
     }
   }
-  sampleData = { cols, rows, hsl };
+  sampleData = { cols, rows, hsl, dir };
 }
+
+ui.direction.addEventListener("change", resample);
 
 function rgbToHsl(r, g, b) {
   const max = Math.max(r, g, b);
@@ -308,6 +323,10 @@ async function play() {
   playState.playing = true;
   playState.startedAt = t0;
   playState.duration = duration;
+  playState.dir = ui.direction.value;
+  const horizontalScan = playState.dir === "lr" || playState.dir === "rl";
+  ui.scan.classList.toggle("vertical", horizontalScan);
+  ui.scan.classList.toggle("horizontal", !horizontalScan);
   ui.scan.classList.add("on");
   ui.play.disabled = true;
   ui.stop.disabled = false;
@@ -353,8 +372,16 @@ function tick() {
   const p = clamp(t / playState.duration, 0, 1);
   const rect = ui.canvas.getBoundingClientRect();
   const parent = ui.canvas.parentElement.getBoundingClientRect();
-  const offset = rect.left - parent.left;
-  ui.scan.style.transform = `translateX(${offset + p * rect.width}px)`;
+  const dir = playState.dir;
+  const reverse = dir === "rl" || dir === "bt";
+  const prog = reverse ? 1 - p : p;
+  if (dir === "lr" || dir === "rl") {
+    const offsetX = rect.left - parent.left;
+    ui.scan.style.transform = `translateX(${offsetX + prog * rect.width}px)`;
+  } else {
+    const offsetY = rect.top - parent.top;
+    ui.scan.style.transform = `translateY(${offsetY + prog * rect.height}px)`;
+  }
   ui.now.textContent = `${t.toFixed(1)} / ${playState.duration.toFixed(1)} s`;
   playState.raf = requestAnimationFrame(tick);
 }

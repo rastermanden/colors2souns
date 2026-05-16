@@ -94,16 +94,25 @@ html, body {
 }
 .scan {
   position: absolute;
+  background: linear-gradient(180deg, transparent, var(--accent-2), transparent);
+  box-shadow: 0 0 12px var(--accent-2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.scan.vertical {
   top: 0;
   bottom: 0;
   left: 0;
   width: 2px;
   background: linear-gradient(180deg, transparent, var(--accent-2), transparent);
-  box-shadow: 0 0 12px var(--accent-2);
-  transform: translateX(-4px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .2s;
+}
+.scan.horizontal {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
 }
 .scan.on { opacity: 1; }
 
