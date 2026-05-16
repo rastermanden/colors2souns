@@ -1,0 +1,38 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+# Share concurrency with the main deploy so previews and prod don't race
+# on the gh-pages branch (both use force-push under the hood).
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  preview:
+    # Skip PRs from forks — they can't access the write token.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Write version.json
+        if: github.event.action != 'closed'
+        run: |
+          commit="$(git rev-parse --short HEAD)"
+          printf '{"version":"pr-%s","commit":"%s","pr":%s}\n' \
+            "${{ github.event.number }}" "$commit" "${{ github.event.number }}" > version.json
+          cat version.json
+      - uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: .
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
+          action: auto
