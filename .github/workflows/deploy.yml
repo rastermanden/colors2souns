@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: gh-pages-deploy
@@ -20,19 +21,50 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Write version.json
+
+      - name: Stage site (exclude dev-only files)
         run: |
+          rm -rf _site
+          mkdir _site
+          rsync -a \
+            --exclude='/.git' \
+            --exclude='/.github' \
+            --exclude='/claude-skills' \
+            --exclude='/CLAUDE.md' \
+            --exclude='/README.md' \
+            --exclude='/_site' \
+            ./ _site/
           version="$(git describe --tags --abbrev=0 2>/dev/null || echo dev)"
           commit="$(git rev-parse --short HEAD)"
-          printf '{"version":"%s","commit":"%s"}\n' "$version" "$commit" > version.json
-          cat version.json
+          printf '{"version":"%s","commit":"%s"}\n' "$version" "$commit" > _site/version.json
+          ls -la _site/
+          cat _site/version.json
+
+      - name: Build preserve-list for open PR previews
+        id: preserve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Keep pr-preview/pr-N/ only for PRs still open; everything else
+          # under pr-preview/ (closed/merged orphans) gets cleaned this deploy.
+          open_prs=$(gh api \
+            "repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+            --jq '.[].number')
+          {
+            echo "list<<EOF"
+            for n in $open_prs; do
+              echo "pr-preview/pr-${n}/"
+            done
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Preserving previews for open PRs: ${open_prs:-none}"
+
       - name: Deploy to gh-pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: .
+          folder: _site
           clean: true
-          clean-exclude: |
-            pr-preview/
+          clean-exclude: ${{ steps.preserve.outputs.list }}
           single-commit: false
           commit-message: "Deploy ${{ github.sha }}"

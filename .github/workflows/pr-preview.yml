@@ -23,16 +23,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Write version.json
+
+      - name: Stage site (exclude dev-only files)
         if: github.event.action != 'closed'
         run: |
+          rm -rf _site
+          mkdir _site
+          rsync -a \
+            --exclude='/.git' \
+            --exclude='/.github' \
+            --exclude='/claude-skills' \
+            --exclude='/CLAUDE.md' \
+            --exclude='/README.md' \
+            --exclude='/_site' \
+            ./ _site/
           commit="$(git rev-parse --short HEAD)"
           printf '{"version":"pr-%s","commit":"%s","pr":%s}\n' \
-            "${{ github.event.number }}" "$commit" "${{ github.event.number }}" > version.json
-          cat version.json
+            "${{ github.event.number }}" "$commit" "${{ github.event.number }}" > _site/version.json
+          ls -la _site/
+
       - uses: rossjrw/pr-preview-action@v1
         with:
-          source-dir: .
+          source-dir: _site
           preview-branch: gh-pages
           umbrella-dir: pr-preview
           action: auto
