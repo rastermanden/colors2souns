@@ -568,10 +568,15 @@ const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
 //   "dismissed" — user tapped ✕ or finished the iOS instructions
 //   (unset)     — first run, show the banner naturally
 const STATE_KEY = "c2s-install-state";
-// Migrate the old flag (PRs #6–#8) so existing users don't get re-nagged.
-if (localStorage.getItem("c2s-install-dismissed") === "1" && !localStorage.getItem(STATE_KEY)) {
-  localStorage.setItem(STATE_KEY, "dismissed");
+const SCHEMA_KEY = "c2s-install-schema";
+const SCHEMA_VERSION = 2;
+// One-time reset for anyone carrying state from the pre-v2 storage. The old
+// single-bit flag conflated "user dismissed" with "app installed", so users
+// who installed and then uninstalled ended up with the banner muted forever.
+if (Number(localStorage.getItem(SCHEMA_KEY) || 0) < SCHEMA_VERSION) {
+  localStorage.removeItem(STATE_KEY);
   localStorage.removeItem("c2s-install-dismissed");
+  localStorage.setItem(SCHEMA_KEY, String(SCHEMA_VERSION));
 }
 const getState = () => localStorage.getItem(STATE_KEY);
 const setState = (s) => localStorage.setItem(STATE_KEY, s);
