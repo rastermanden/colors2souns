@@ -251,6 +251,107 @@ function loadImage(src) {
   });
 }
 
+// ---------- Camera capture ----------
+
+const cameraOpenBtn = $("cameraOpen");
+const cameraModal = $("cameraModal");
+const cameraVideo = $("cameraVideo");
+const cameraCaptureBtn = $("cameraCapture");
+const cameraSwitchBtn = $("cameraSwitch");
+const cameraCloseBtn = $("cameraClose");
+const cameraError = $("cameraError");
+
+let cameraStream = null;
+let cameraFacing = "environment"; // default to the rear camera on mobile
+
+if (navigator.mediaDevices?.getUserMedia) {
+  cameraOpenBtn.hidden = false;
+  cameraOpenBtn.addEventListener("click", openCamera);
+  cameraCloseBtn.addEventListener("click", closeCamera);
+  cameraSwitchBtn.addEventListener("click", flipCamera);
+  cameraCaptureBtn.addEventListener("click", captureCamera);
+  cameraModal.addEventListener("click", (e) => {
+    if (e.target === cameraModal) closeCamera();
+  });
+}
+
+async function openCamera() {
+  cameraError.hidden = true;
+  cameraError.textContent = "";
+  cameraModal.hidden = false;
+  await startCameraStream();
+}
+
+async function startCameraStream() {
+  stopCameraStream();
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: cameraFacing } },
+      audio: false,
+    });
+    cameraVideo.srcObject = cameraStream;
+    await cameraVideo.play().catch(() => {});
+    cameraCaptureBtn.disabled = false;
+  } catch (err) {
+    cameraCaptureBtn.disabled = true;
+    cameraError.textContent = describeCameraError(err);
+    cameraError.hidden = false;
+  }
+}
+
+function stopCameraStream() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((t) => t.stop());
+    cameraStream = null;
+  }
+  cameraVideo.srcObject = null;
+}
+
+function closeCamera() {
+  stopCameraStream();
+  cameraModal.hidden = true;
+}
+
+async function flipCamera() {
+  cameraFacing = cameraFacing === "environment" ? "user" : "environment";
+  await startCameraStream();
+}
+
+function describeCameraError(err) {
+  const name = err?.name || "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return "Camera permission denied. Allow camera access in your browser settings and try again.";
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return "No camera was found on this device.";
+  }
+  if (name === "NotReadableError") {
+    return "Another app is using the camera. Close it and try again.";
+  }
+  if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+    return "Camera access requires a secure (HTTPS) connection.";
+  }
+  return `Could not start the camera. ${err?.message || ""}`.trim();
+}
+
+function captureCamera() {
+  const w = cameraVideo.videoWidth;
+  const h = cameraVideo.videoHeight;
+  if (!w || !h) return;
+  const snap = document.createElement("canvas");
+  snap.width = w;
+  snap.height = h;
+  snap.getContext("2d").drawImage(cameraVideo, 0, 0);
+  imgBitmap = snap;
+  closeCamera();
+  drawImage();
+  resample();
+  ui.previewCard.hidden = false;
+  ui.controlsCard.hidden = false;
+  ui.play.disabled = false;
+  ui.stop.disabled = true;
+}
+
 function drawImage() {
   // Fit within working size while preserving aspect ratio.
   const maxW = 480, maxH = 360;

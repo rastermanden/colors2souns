@@ -51,11 +51,29 @@
         <span class="drop-title">Tap to choose an image</span>
         <span class="drop-hint">or drag &amp; drop · png, jpg, webp</span>
       </label>
+      <div class="upload-actions">
+        <button id="cameraOpen" type="button" class="camera-btn" hidden>Use camera</button>
+      </div>
       <div class="samples">
         <span class="samples-label">or try a melody:</span>
         <div class="sample-row" id="samples"></div>
       </div>
     </section>
+
+    <div class="modal" id="cameraModal" hidden>
+      <div class="modal-card camera-card">
+        <h3>Camera</h3>
+        <div class="camera-view">
+          <video id="cameraVideo" playsinline autoplay muted aria-label="camera preview"></video>
+        </div>
+        <p class="camera-error" id="cameraError" hidden></p>
+        <div class="camera-actions">
+          <button id="cameraCapture" class="primary" type="button" disabled>Capture</button>
+          <button id="cameraSwitch" type="button">Flip</button>
+          <button id="cameraClose" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
 
     <section class="card preview" id="previewCard" hidden>
       <div class="canvas-wrap">
@@ -332,6 +350,6 @@
     </footer>
   </main>
 
-  <script src="./app.js?v=12" type="module"></script>
+  <script src="./app.js?v=13" type="module"></script>
 </body>
 </html>

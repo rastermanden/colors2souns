@@ -2,8 +2,8 @@
 
 Turn an image into sound, right in the browser. Mobile-first. No build step.
 
-Open the deployed page, upload an image, and tweak the sliders to calibrate
-the image → sound mapping.
+Open the deployed page, upload an image (or snap one with **Use camera**),
+and tweak the sliders to calibrate the image → sound mapping.
 
 ## How the mapping works
 
