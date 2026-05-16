@@ -547,3 +547,79 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 window.addEventListener("resize", () => {
   if (playState.playing) tick();
 });
+
+// ---------- PWA install ----------
+
+const installPanel = $("installPanel");
+const installBtn = $("installBtn");
+const installClose = $("installClose");
+const installHint = $("installHint");
+const iosHelp = $("iosHelp");
+const iosHelpClose = $("iosHelpClose");
+
+const STANDALONE =
+  window.matchMedia("(display-mode: standalone)").matches ||
+  window.navigator.standalone === true;
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+const DISMISS_KEY = "c2s-install-dismissed";
+
+let deferredInstall = null;
+
+function showInstallPanel({ ios = false } = {}) {
+  if (localStorage.getItem(DISMISS_KEY) === "1") return;
+  installHint.textContent = ios
+    ? 'Tap the share icon, then "Add to Home Screen".'
+    : "Add it to your home screen for one-tap access.";
+  installBtn.textContent = ios ? "Show me how" : "Install";
+  installPanel.hidden = false;
+}
+
+function hideInstallPanel() {
+  installPanel.hidden = true;
+}
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+  if (!STANDALONE) showInstallPanel();
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstall = null;
+  hideInstallPanel();
+  localStorage.setItem(DISMISS_KEY, "1");
+});
+
+installBtn.addEventListener("click", async () => {
+  if (deferredInstall) {
+    deferredInstall.prompt();
+    try { await deferredInstall.userChoice; } catch {}
+    deferredInstall = null;
+    hideInstallPanel();
+  } else if (IS_IOS) {
+    iosHelp.hidden = false;
+  } else {
+    iosHelp.hidden = false;
+  }
+});
+
+installClose.addEventListener("click", () => {
+  hideInstallPanel();
+  localStorage.setItem(DISMISS_KEY, "1");
+});
+
+iosHelpClose.addEventListener("click", () => {
+  iosHelp.hidden = true;
+});
+
+iosHelp.addEventListener("click", (e) => {
+  if (e.target === iosHelp) iosHelp.hidden = true;
+});
+
+if (!STANDALONE && IS_IOS) showInstallPanel({ ios: true });
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
