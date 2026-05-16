@@ -606,11 +606,15 @@ installBtn.addEventListener("click", async () => {
     try { await deferredInstall.userChoice; } catch {}
     deferredInstall = null;
     hideInstallPanel();
-  } else if (IS_IOS) {
-    iosHelp.hidden = false;
-  } else {
-    iosHelp.hidden = false;
+    return;
   }
+  if (IS_IOS) {
+    iosHelp.hidden = false;
+    return;
+  }
+  // Non-iOS without a deferred prompt: nothing to install from here.
+  hideInstallPanel();
+  localStorage.setItem(DISMISS_KEY, "1");
 });
 
 installClose.addEventListener("click", () => {
