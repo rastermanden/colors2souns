@@ -233,6 +233,22 @@ input[type="checkbox"] {
   vertical-align: -3px;
 }
 
+.controls[data-mode="hue"] .mode-rgb { display: none; }
+.controls[data-mode="rgb"] .mode-hue { display: none; }
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  vertical-align: -1px;
+  margin-right: 6px;
+  border: 1px solid rgba(255,255,255,.15);
+}
+.swatch-r { background: #ff3b30; }
+.swatch-g { background: #34c759; }
+.swatch-b { background: #0a84ff; }
+
 .foot {
   text-align: center;
   margin: 20px 0 4px;
