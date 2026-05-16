@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b10" />
+  <title>colors2souns</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <h1>colors2souns</h1>
+      <p class="sub">Turn an image into sound. Tweak the mapping with the sliders.</p>
+    </header>
+
+    <section class="card upload">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="image/*" />
+        <span class="drop-title">Tap to choose an image</span>
+        <span class="drop-hint">or drag &amp; drop · png, jpg, webp</span>
+      </label>
+    </section>
+
+    <section class="card preview" id="previewCard" hidden>
+      <div class="canvas-wrap">
+        <canvas id="canvas" aria-label="image preview"></canvas>
+        <div class="scan" id="scan"></div>
+      </div>
+      <div class="transport">
+        <button id="play" class="primary" type="button" disabled>Play</button>
+        <button id="stop" type="button" disabled>Stop</button>
+        <span class="now" id="now">—</span>
+      </div>
+    </section>
+
+    <section class="card controls" id="controlsCard" hidden>
+      <h2>Calibration</h2>
+
+      <div class="ctrl">
+        <label for="duration">Scan duration <output id="durationOut">6.0 s</output></label>
+        <input type="range" id="duration" min="1" max="30" step="0.5" value="6" />
+      </div>
+
+      <div class="ctrl">
+        <label for="density">Sample density <output id="densityOut">64 cols</output></label>
+        <input type="range" id="density" min="8" max="256" step="1" value="64" />
+      </div>
+
+      <div class="ctrl">
+        <label for="baseFreq">Base frequency <output id="baseFreqOut">110 Hz</output></label>
+        <input type="range" id="baseFreq" min="40" max="880" step="1" value="110" />
+      </div>
+
+      <div class="ctrl">
+        <label for="octaves">Pitch range <output id="octavesOut">4 oct</output></label>
+        <input type="range" id="octaves" min="1" max="7" step="0.1" value="4" />
+      </div>
+
+      <div class="ctrl">
+        <label for="hueShift">Hue offset <output id="hueShiftOut">0°</output></label>
+        <input type="range" id="hueShift" min="0" max="360" step="1" value="0" />
+      </div>
+
+      <div class="ctrl">
+        <label for="quantize">Scale</label>
+        <select id="quantize">
+          <option value="off">Continuous</option>
+          <option value="chromatic">Chromatic (12-TET)</option>
+          <option value="major" selected>Major</option>
+          <option value="minor">Minor</option>
+          <option value="pentatonic">Pentatonic</option>
+          <option value="blues">Blues</option>
+          <option value="wholetone">Whole tone</option>
+        </select>
+      </div>
+
+      <div class="ctrl">
+        <label for="wave">Waveform</label>
+        <select id="wave">
+          <option value="sine" selected>Sine</option>
+          <option value="triangle">Triangle</option>
+          <option value="square">Square</option>
+          <option value="sawtooth">Sawtooth</option>
+        </select>
+      </div>
+
+      <div class="ctrl">
+        <label for="brightness">Brightness → volume <output id="brightnessOut">100%</output></label>
+        <input type="range" id="brightness" min="0" max="200" step="1" value="100" />
+      </div>
+
+      <div class="ctrl">
+        <label for="saturation">Saturation → harmonics <output id="saturationOut">60%</output></label>
+        <input type="range" id="saturation" min="0" max="100" step="1" value="60" />
+      </div>
+
+      <div class="ctrl">
+        <label for="vrows">Vertical chord voices <output id="vrowsOut">3</output></label>
+        <input type="range" id="vrows" min="1" max="8" step="1" value="3" />
+      </div>
+
+      <div class="ctrl">
+        <label for="gain">Master volume <output id="gainOut">70%</output></label>
+        <input type="range" id="gain" min="0" max="100" step="1" value="70" />
+      </div>
+
+      <div class="ctrl">
+        <label for="loop"><input type="checkbox" id="loop" /> Loop</label>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <a href="https://github.com/rastermanden/colors2souns">source</a>
+    </footer>
+  </main>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
