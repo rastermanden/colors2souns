@@ -557,15 +557,16 @@ const installHint = $("installHint");
 const iosHelp = $("iosHelp");
 const iosHelpClose = $("iosHelpClose");
 
-const STANDALONE =
-  window.matchMedia("(display-mode: standalone)").matches ||
-  window.navigator.standalone === true;
+const standaloneMql = window.matchMedia("(display-mode: standalone)");
+const isStandalone = () =>
+  standaloneMql.matches || window.navigator.standalone === true;
 const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
 const DISMISS_KEY = "c2s-install-dismissed";
 
 let deferredInstall = null;
 
 function showInstallPanel({ ios = false } = {}) {
+  if (isStandalone()) return;
   if (localStorage.getItem(DISMISS_KEY) === "1") return;
   installHint.textContent = ios
     ? 'Tap the share icon, then "Add to Home Screen".'
@@ -578,10 +579,19 @@ function hideInstallPanel() {
   installPanel.hidden = true;
 }
 
+// If the app gets installed mid-session (display-mode flips to standalone),
+// hide the banner right away.
+standaloneMql.addEventListener?.("change", (e) => {
+  if (e.matches) {
+    hideInstallPanel();
+    localStorage.setItem(DISMISS_KEY, "1");
+  }
+});
+
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredInstall = e;
-  if (!STANDALONE) showInstallPanel();
+  if (!isStandalone()) showInstallPanel();
 });
 
 window.addEventListener("appinstalled", () => {
@@ -610,13 +620,16 @@ installClose.addEventListener("click", () => {
 
 iosHelpClose.addEventListener("click", () => {
   iosHelp.hidden = true;
+  // User has seen the install steps — stop nagging them on future loads.
+  hideInstallPanel();
+  localStorage.setItem(DISMISS_KEY, "1");
 });
 
 iosHelp.addEventListener("click", (e) => {
   if (e.target === iosHelp) iosHelp.hidden = true;
 });
 
-if (!STANDALONE && IS_IOS) showInstallPanel({ ios: true });
+if (!isStandalone() && IS_IOS) showInstallPanel({ ios: true });
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
