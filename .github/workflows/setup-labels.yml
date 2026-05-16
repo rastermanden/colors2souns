@@ -1,0 +1,41 @@
+name: Setup release labels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  labels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = [
+              { name: 'major', color: 'b60205', description: 'Breaking change — bumps MAJOR on merge' },
+              { name: 'minor', color: '0e8a16', description: 'New feature — bumps MINOR on merge' },
+              { name: 'patch', color: 'c5def5', description: 'Bug fix / chore — bumps PATCH on merge' },
+            ];
+            for (const l of labels) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ...l,
+                });
+                core.info(`Created label: ${l.name}`);
+              } catch (e) {
+                if (e.status === 422) {
+                  await github.rest.issues.updateLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ...l,
+                  });
+                  core.info(`Updated existing label: ${l.name}`);
+                } else {
+                  throw e;
+                }
+              }
+            }
