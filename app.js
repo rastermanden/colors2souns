@@ -85,29 +85,93 @@ for (const k of ["duration", "density", "baseFreq", "octaves", "hueShift",
   });
 }
 
-// Note dropdowns for RGB mode (C2 .. C6, MIDI 36..84).
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
-function noteLabel(m) {
-  return NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1);
-}
-function fillNoteOptions(select, defaultMidi) {
-  for (let m = 36; m <= 84; m++) {
-    const opt = document.createElement("option");
-    opt.value = String(m);
-    opt.textContent = noteLabel(m);
-    if (m === defaultMidi) opt.selected = true;
-    select.appendChild(opt);
-  }
-}
-fillNoteOptions(ui.rNote, 48); // C3
-fillNoteOptions(ui.gNote, 64); // E4
-fillNoteOptions(ui.bNote, 79); // G5
 
 ui.mode.addEventListener("change", () => {
   ui.controlsCard.dataset.mode = ui.mode.value;
   resample();
 });
+
+// ---------- Built-in melodies ----------
+// Each melody is a list of major-scale degrees (0=C, 1=D, ... 6=B, 7=C', 8=D', ...).
+// In hue mode with Major scale + 2-octave range, hue (degree+0.5)/14 maps to
+// the desired note. Loading a sample paints colour bands onto the canvas and
+// applies the preset that decodes them back.
+const SAMPLES = [
+  {
+    name: "Twinkle",
+    degrees: [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0],
+    duration: 5,
+  },
+  {
+    name: "Mary",
+    degrees: [2, 1, 0, 1, 2, 2, 2, 1, 1, 1, 2, 4, 4],
+    duration: 4.5,
+  },
+  {
+    name: "Ode to Joy",
+    degrees: [2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 2, 1, 1],
+    duration: 5,
+  },
+];
+
+function buildSampleCanvas(degrees) {
+  const stepsPerOctave = 7;
+  const octaves = 2;
+  const total = stepsPerOctave * octaves; // 14 hue slots
+  const bandW = 36;
+  const w = degrees.length * bandW;
+  const h = 200;
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const cc = c.getContext("2d");
+  for (let i = 0; i < degrees.length; i++) {
+    const idx = degrees[i];
+    const hue = ((idx + 0.5) / total) * 360;
+    cc.fillStyle = `hsl(${hue.toFixed(1)}, 85%, 55%)`;
+    cc.fillRect(i * bandW, 0, bandW, h);
+  }
+  return c;
+}
+
+function loadSample(sample) {
+  imgBitmap = buildSampleCanvas(sample.degrees);
+  // Preset for melody playback.
+  ui.mode.value = "hue";
+  ui.controlsCard.dataset.mode = "hue";
+  ui.quantize.value = "major";
+  ui.octaves.value = 2;
+  ui.baseFreq.value = 131; // ≈ C3
+  ui.duration.value = sample.duration;
+  ui.direction.value = "lr";
+  ui.hueShift.value = 0;
+  ui.vrows.value = 1;
+  // Density a multiple of note count, so each sample column stays inside one band.
+  ui.density.value = Math.min(256, sample.degrees.length * 8);
+  ui.brightness.value = 110;
+  ui.saturation.value = 60;
+  ui.wave.value = "triangle";
+  fmt();
+  drawImage();
+  resample();
+  ui.previewCard.hidden = false;
+  ui.play.disabled = false;
+  ui.stop.disabled = true;
+}
+
+function initSampleButtons() {
+  const row = $("samples");
+  if (!row) return;
+  for (const s of SAMPLES) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "sample-btn";
+    b.textContent = s.name;
+    b.addEventListener("click", () => loadSample(s));
+    row.appendChild(b);
+  }
+}
+initSampleButtons();
 
 // ---------- File / image loading ----------
 
