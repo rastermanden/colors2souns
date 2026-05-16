@@ -30,6 +30,10 @@ Tap or drag on the preview to jump the playhead to that position — handy
 for skipping to an interesting part of the image without restarting from
 the beginning.
 
+The calibration sliders are remembered between sessions: your last
+settings come back on the next reload so you don't have to re-dial them
+every time.
+
 ## Run locally
 
 It's a static site:
