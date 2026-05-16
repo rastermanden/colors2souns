@@ -665,3 +665,13 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   });
 }
+
+// Version stamp — populated from version.json written at deploy time.
+fetch("./version.json", { cache: "no-cache" })
+  .then((r) => (r.ok ? r.json() : null))
+  .then((data) => {
+    const v = data && data.version;
+    const el = document.getElementById("version");
+    if (el && v) el.textContent = `v${v}`;
+  })
+  .catch(() => {});

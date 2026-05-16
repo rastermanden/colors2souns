@@ -1,8 +1,8 @@
-const CACHE = "c2s-v5";
+const CACHE = "c2s-v6";
 const SHELL = [
   "./",
   "./index.html",
-  "./app.js?v=10",
+  "./app.js?v=11",
   "./style.css",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
@@ -31,7 +31,8 @@ function isHtmlOrScript(req) {
   const url = new URL(req.url);
   return url.pathname.endsWith("/") ||
     url.pathname.endsWith(".html") ||
-    url.pathname.endsWith(".js");
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith("/version.json");
 }
 
 self.addEventListener("fetch", (e) => {
